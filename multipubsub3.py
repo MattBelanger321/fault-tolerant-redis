@@ -8,6 +8,7 @@ import redis
 # Messaging Interface Module #
 ##############################
 
+
 class MessageBroker(abc.ABC):
     @abc.abstractmethod
     def subscribe(self, channel, callback=None):
@@ -28,12 +29,15 @@ class MessageBroker(abc.ABC):
 # Redis Pub/Sub Implementation    #
 ###################################
 
+
 class RedisMessageBroker(MessageBroker):
     def __init__(self, host='localhost', port=6379):
         # Publisher connection
-        self.publisher = redis.Redis(host=host, port=port, decode_responses=True)
+        self.publisher = redis.Redis(
+            host=host, port=port, decode_responses=True)
         # Subscriber connection
-        self.subscriber = redis.Redis(host=host, port=port, decode_responses=True)
+        self.subscriber = redis.Redis(
+            host=host, port=port, decode_responses=True)
         self.pubsub = self.subscriber.pubsub()
         # Dictionary to store callbacks for each channel
         self.callbacks = {}  # { channel: [callback, ...] }
@@ -58,7 +62,8 @@ class RedisMessageBroker(MessageBroker):
             def _listen():
                 # Use polling loop instead of blocking listen()
                 while True:
-                    message = self.pubsub.get_message(ignore_subscribe_messages=True, timeout=1)
+                    message = self.pubsub.get_message(
+                        ignore_subscribe_messages=True, timeout=1)
                     if message is not None:
                         # We only care about messages of type 'message'
                         if message['type'] == 'message':
@@ -69,15 +74,18 @@ class RedisMessageBroker(MessageBroker):
                                 for cb in self.callbacks[ch]:
                                     cb(ch, data)
                             else:
-                                print(f"[Global Listener] Channel '{ch}': {data}")
+                                print(
+                                    f"[Global Listener] Channel '{ch}': {data}")
                     # Short sleep to avoid busy-waiting
                     time.sleep(0.001)
-            self.listening_thread = threading.Thread(target=_listen, daemon=True)
+            self.listening_thread = threading.Thread(
+                target=_listen, daemon=True)
             self.listening_thread.start()
 
 ###################################
 # Client Abstraction Module       #
 ###################################
+
 
 class Client:
     def __init__(self, client_id, broker: MessageBroker):
@@ -98,6 +106,7 @@ class Client:
 # Main Interactive Controller     #
 ###################################
 
+
 def main():
     # Instantiate the messaging backend.
     broker = RedisMessageBroker()
@@ -111,7 +120,7 @@ def main():
     print("  client <id> subscribe <channel>")
     print("  client <id> publish <channel> <message>")
     print("  exit")
-    
+
     while True:
         try:
             command = input("> ").strip()
@@ -150,6 +159,7 @@ def main():
             break
         else:
             print("Unknown command. Please try again.")
+
 
 if __name__ == '__main__':
     main()

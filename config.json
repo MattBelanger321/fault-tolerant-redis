@@ -1,0 +1,45 @@
+{
+	"clients": [
+		{
+			"id": "client1",
+			"subscribe": [
+				"notifications",
+				"alerts"
+			],
+			"publish": [
+				{
+					"channel": "status",
+					"message": "Status update from client1",
+					"frequency_ms": 1000
+				}
+			]
+		},
+		{
+			"id": "client2",
+			"subscribe": [
+				"status"
+			],
+			"publish": [
+				{
+					"channel": "notifications",
+					"message": "Notification from client2",
+					"frequency_ms": 500
+				},
+				{
+					"channel": "alerts",
+					"message": "ALERT: This is an important message",
+					"frequency_ms": 3000
+				}
+			]
+		},
+		{
+			"id": "logger",
+			"subscribe": [
+				"status",
+				"notifications",
+				"alerts"
+			],
+			"publish": []
+		}
+	]
+}

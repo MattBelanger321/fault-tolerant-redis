@@ -1,4 +1,4 @@
-from message_broker import MessageBroker
+from .message_broker import MessageBroker
 import threading
 import time
 import redis

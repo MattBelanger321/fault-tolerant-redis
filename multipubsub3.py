@@ -1,69 +1,122 @@
-import abc
-import threading
-import sys
+import datetime
+import json
 import time
-import redis
-
+import threading
+import os
 from message_brokers.redis_broker import RedisMessageBroker
-from client import Client
+from client import LoggingClient
 
-###################################
-# Main Interactive Controller     #
-###################################
+
+class ConfigurableMessagingSystem:
+    def __init__(self, config_file, output_dir=None):
+        self.broker = RedisMessageBroker()
+        self.clients = {}
+        self.publisher_threads = []
+
+        # Set up logging directory
+        self.output_dir = output_dir or os.getcwd()
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # Load configuration
+        self.load_config(config_file)
+
+    def load_config(self, config_file):
+        """Load client configuration from a JSON file."""
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+
+            # Initialize clients
+            for client_config in config.get('clients', []):
+                client_id = client_config.get('id')
+                if not client_id:
+                    print(f"Skipping client with missing ID")
+                    continue
+
+                # Create client with logging capability
+                client_log_dir = os.path.join(self.output_dir, client_id)
+                client = LoggingClient(client_id, self.broker, client_log_dir)
+                self.clients[client_id] = client
+
+                # Set up subscriptions
+                for channel in client_config.get('subscribe', []):
+                    client.subscribe(channel)
+                    print(
+                        f"Client {client_id} subscribed to channel: {channel}")
+
+                # Set up publishers
+                for pub_config in client_config.get('publish', []):
+                    channel = pub_config.get('channel')
+                    message = pub_config.get(
+                        'message', f"Message from {client_id}")
+                    # Frequency in milliseconds now
+                    # Default: 5000ms (5 seconds)
+                    frequency_ms = pub_config.get('frequency_ms', 5000)
+
+                    if channel:
+                        # Create a publisher thread for this client-channel combination
+                        thread = threading.Thread(
+                            target=self._publisher_thread,
+                            args=(client_id, channel, message, frequency_ms),
+                            daemon=True
+                        )
+                        self.publisher_threads.append(thread)
+                        print(
+                            f"Client {client_id} will publish to {channel} every {frequency_ms}ms")
+                    else:
+                        print(
+                            f"Skipping publisher config for {client_id} with missing channel")
+
+            print(f"Configured {len(self.clients)} clients from {config_file}")
+
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            print(f"Error loading configuration: {e}")
+            raise
+
+    def _publisher_thread(self, client_id, channel, message, frequency_ms):
+        """Continuously publish messages at the specified frequency in milliseconds."""
+        client = self.clients[client_id]
+        sleep_time = frequency_ms / 1000.0  # Convert ms to seconds for sleep
+
+        while True:
+            client.publish(channel, message)
+            time.sleep(sleep_time)
+
+    def start(self):
+        """Start the message broker and all publisher threads."""
+        print(f"Starting Redis message broker...")
+        self.broker.start_listener()
+
+        print(f"Starting publisher threads...")
+        for thread in self.publisher_threads:
+            thread.start()
+
+        try:
+            print(f"System running. Press Ctrl+C to exit.")
+            print(
+                f"Log files are being created in client-specific directories under: {self.output_dir}")
+            # Keep the main thread alive
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nShutting down...")
+            # The broker and thread cleanup will happen on program exit
 
 
 def main():
-    # Instantiate the messaging backend.
-    broker = RedisMessageBroker()
-    broker.start_listener()
+    import sys
+    import argparse
 
-    clients = {}
+    parser = argparse.ArgumentParser(
+        description="JSON-configured messaging system")
+    parser.add_argument("config_file", help="Path to JSON configuration file")
+    parser.add_argument("--output-dir", "-o",
+                        help="Directory for log files", default="./logs")
 
-    print("Multi-Client Modular Messaging Controller")
-    print("Commands:")
-    print("  create client <id>")
-    print("  client <id> subscribe <channel>")
-    print("  client <id> publish <channel> <message>")
-    print("  exit")
+    args = parser.parse_args()
 
-    while True:
-        try:
-            command = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nExiting...")
-            break
-
-        if not command:
-            continue
-
-        parts = command.split()
-        if parts[0] == "create" and len(parts) == 3 and parts[1] == "client":
-            client_id = parts[2]
-            if client_id in clients:
-                print(f"Client {client_id} already exists.")
-            else:
-                clients[client_id] = Client(client_id, broker)
-                print(f"Client {client_id} created.")
-        elif parts[0] == "client" and len(parts) >= 4:
-            client_id = parts[1]
-            if client_id not in clients:
-                print(f"Client {client_id} does not exist.")
-                continue
-
-            if parts[2] == "subscribe" and len(parts) == 4:
-                channel = parts[3]
-                clients[client_id].subscribe(channel)
-            elif parts[2] == "publish" and len(parts) >= 5:
-                channel = parts[3]
-                message = " ".join(parts[4:])
-                clients[client_id].publish(channel, message)
-            else:
-                print("Invalid command. Use 'subscribe' or 'publish'.")
-        elif parts[0] == "exit":
-            print("Exiting...")
-            break
-        else:
-            print("Unknown command. Please try again.")
+    system = ConfigurableMessagingSystem(args.config_file, args.output_dir)
+    system.start()
 
 
 if __name__ == '__main__':

@@ -22,6 +22,9 @@ class Client:
         self.broker.publish(channel, message)
         print(f"Client {self.client_id} published to channel '{channel}'.")
 
+    def unsubscribe(self, channel):  # correct spelling
+        self.broker.unsubscribe(channel)
+
 
 class LoggingClient(Client):
     """Extended client with logging capabilities"""
@@ -61,7 +64,7 @@ class LoggingClient(Client):
         """Log publish events to this client's publish log file"""
         timestamp = datetime.datetime.now().strftime(
             "%Y-%m-%d %H:%M:%S.%f")[:-3]
-        log_entry = f"[{timestamp}] Published to '{channel}': {message}\n"
+        log_entry = f"[{timestamp}] Published to channel \"'{channel}'\": message: \"{message}\"\n"
         with open(self.publish_log_file, 'a') as f:
             f.write(log_entry)
 
@@ -69,8 +72,22 @@ class LoggingClient(Client):
         """Log received messages to this client's notification log file"""
         timestamp = datetime.datetime.now().strftime(
             "%Y-%m-%d %H:%M:%S.%f")[:-3]
-        log_entry = f"[{timestamp}] Received from '{channel}': {message}\n"
+        log_entry = f"[{timestamp}] Received on channel: '{channel}': message: \"{message}\"\n"
         with open(self.notification_log_file, 'a') as f:
+            f.write(log_entry)
+
+    def log_to_notification_file(self, message):
+        timestamp = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S.%f")[:-3]
+        log_entry = f"[{timestamp}] {message}\n"
+        with open(self.notification_log_file, 'a') as f:
+            f.write(log_entry)
+
+    def log_to_publish_file(self, message):
+        timestamp = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S.%f")[:-3]
+        log_entry = f"[{timestamp}] {message}\n"
+        with open(self.publish_log_file, 'a') as f:
             f.write(log_entry)
 
     def publish(self, channel, message):
@@ -78,11 +95,13 @@ class LoggingClient(Client):
         super().publish(channel, message)
         self._log_publish(channel, message)
 
-    def subscribe(self, channel):
-        """Override subscribe to add logging callback"""
-        def message_callback(ch, msg):
-            self._log_notification(ch, msg)
-            # You can add additional processing here if needed
+    def message_callback(self, ch, msg, cb=None):
+        if cb:
+            cb(ch, msg)
+        self._log_notification(ch, msg)
+        # You can add additional processing here if needed
 
+    def subscribe(self, channel, cb=None):
         # Register with broker for this channel
-        self.broker.subscribe(channel, message_callback)
+        self.broker.subscribe(channel, lambda ch,
+                              msg, cb=cb: self.message_callback(ch, msg, cb))

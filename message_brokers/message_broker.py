@@ -9,6 +9,11 @@ import abc
 
 class MessageBroker(abc.ABC):
     @abc.abstractmethod
+    def unsubscribe(self, channel):
+        """Unsubscribe from a channel"""
+        pass
+
+    @abc.abstractmethod
     def subscribe(self, channel, callback=None):
         """Subscribe to a channel and optionally register a callback."""
         pass

@@ -32,6 +32,12 @@ class RedisMessageBroker(MessageBroker):
         # Brief pause to help ensure the subscribe command is processed.
         time.sleep(0.1)
 
+    def unsubscribe(self, channel):
+        if channel in self.callbacks:
+            del self.callbacks[channel]
+        self.pubsub.unsubscribe(channel)
+        time.sleep(0.1)
+
     def publish(self, channel, message):
         self.publisher.publish(channel, message)
 

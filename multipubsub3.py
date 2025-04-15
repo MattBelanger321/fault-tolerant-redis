@@ -3,8 +3,10 @@ import json
 import time
 import threading
 import os
+from clients.reliabie_client import ReliableClient
+from clients.repository_client import RepositoryClient
 from message_brokers.redis_broker import RedisMessageBroker
-from client import LoggingClient
+from clients.client import LoggingClient
 
 
 class ConfigurableMessagingSystem:
@@ -35,8 +37,12 @@ class ConfigurableMessagingSystem:
 
                 # Create client with logging capability
                 client_log_dir = os.path.join(self.output_dir, client_id)
-                client = LoggingClient(client_id, self.broker, client_log_dir)
-                self.clients[client_id] = client
+                if client_config.get("id", "") != "repository":
+                    client = ReliableClient(
+                        client_id, self.broker, client_log_dir)
+                else:
+                    client = RepositoryClient(
+                        client_id, self.broker, client_log_dir)
 
                 # Set up subscriptions
                 for channel in client_config.get('subscribe', []):
@@ -66,6 +72,7 @@ class ConfigurableMessagingSystem:
                     else:
                         print(
                             f"Skipping publisher config for {client_id} with missing channel")
+                self.clients[client_id] = client
 
             print(f"Configured {len(self.clients)} clients from {config_file}")
 

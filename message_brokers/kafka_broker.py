@@ -1,5 +1,6 @@
 import re
 import threading
+import time
 from kafka import KafkaProducer, KafkaConsumer
 from .message_broker import MessageBroker
 
@@ -33,10 +34,20 @@ class KafkaBroker(MessageBroker):
         consumer = KafkaConsumer(
             topic,
             bootstrap_servers=self.producer.config['bootstrap_servers'],
-            auto_offset_reset='earliest',
+            auto_offset_reset='latest',
             group_id=None,
             value_deserializer=lambda v: v.decode('utf-8')
         )
+
+        # ─── BLOCK until the consumer is fully subscribed ───
+        # kick off the assignment
+        consumer.poll(timeout_ms=500)
+        deadline = time.time() + 5.0
+        while not consumer.assignment() and time.time() < deadline:
+            consumer.poll(timeout_ms=100)
+        if not consumer.assignment():
+            print(f"[KafkaBroker] WARNING: no partitions assigned for topic '{topic}'")
+
         self.consumers[topic] = consumer
 
         def _listen():

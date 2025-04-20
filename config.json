@@ -1,48 +1,60 @@
 {
+	"selected_broker": "redis",
+  
+	"brokers": {
+	  "redis": {
+		"host": "localhost",
+		"port": 6379
+	  },
+	  "rabbitmq": {
+		"host": "localhost",
+		"port": 5672,
+		"username": "guest",
+		"password": "guest",
+		"vhost": "/"
+	  },
+	  "kafka": {
+		"bootstrap_servers": [
+		  "localhost:9092"
+		]
+	  }
+	},
+  
 	"clients": [
-		{
-			"id": "client1",
-			"reliable": true,
-			"subscribe": [
-				"notifications",
-				"alerts"
-			],
-			"publish": [
-				{
-					"channel": "status",
-					"message": "Status update from client1",
-					"frequency_ms": 5000
-				}
-			]
-		},
-		{
-			"id": "client2",
-			"reliable": true,
-			"subscribe": [
-				"status"
-			],
-			"publish": [
-				{
-					"channel": "notifications",
-					"message": "Notification from client2",
-					"frequency_ms": 5000
-				},
-				{
-					"channel": "alerts",
-					"message": "ALERT: This is an important message from client2",
-					"frequency_ms": 5000
-				}
-			]
-		},
-		{
-			"id": "repository",
-			"reliable": true,
-			"subscribe": [
-				"status",
-				"notifications",
-				"alerts"
-			],
-			"publish": []
-		}
+	  {
+		"id": "client1",
+		"reliable": true,
+		"subscribe": ["notifications", "alerts"],
+		"publish": [
+		  {
+			"channel": "status",
+			"message": "Status update from client1",
+			"frequency_ms": 5000
+		  }
+		]
+	  },
+	  {
+		"id": "client2",
+		"reliable": true,
+		"subscribe": ["status"],
+		"publish": [
+		  {
+			"channel": "notifications",
+			"message": "Notification from client2",
+			"frequency_ms": 5000
+		  },
+		  {
+			"channel": "alerts",
+			"message": "ALERT: This is an important message from client2",
+			"frequency_ms": 5000
+		  }
+		]
+	  },
+	  {
+		"id": "repository",
+		"reliable": true,
+		"subscribe": ["status", "notifications", "alerts"],
+		"publish": []
+	  }
 	]
-}
+  }

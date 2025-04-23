@@ -1,5 +1,5 @@
 {
-	"selected_broker": "redis",
+	"selected_broker": "kafka",
   
 	"brokers": {
 	  "redis": {

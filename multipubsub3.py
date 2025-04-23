@@ -1,16 +1,25 @@
+#!/usr/bin/env python3
+# multipubsub3.py
+
 import json
 import time
 import threading
 import os
-import argparse
-
+from message_brokers.factory import get_broker
 from clients.reliabie_client import ReliableClient
 from clients.repository_client import RepositoryClient
-from message_brokers.factory import get_broker
+
 
 class ConfigurableMessagingSystem:
-    def __init__(self, config, broker, output_dir=None):
-        self.broker = broker
+    def __init__(self, config_file, output_dir=None):
+        # ─── Load config & pick broker ───
+        with open(config_file, 'r') as f:
+            cfg = json.load(f)
+
+        sel = cfg["selected_broker"]              # "redis" | "rabbitmq" | "kafka"
+        broker_cfg = cfg["brokers"][sel]
+        broker_cfg["type"] = sel
+        self.broker = get_broker(broker_cfg)
         self.clients = {}
         self.publisher_threads = []
 
@@ -18,57 +27,55 @@ class ConfigurableMessagingSystem:
         self.output_dir = output_dir or os.getcwd()
         os.makedirs(self.output_dir, exist_ok=True)
 
-        # Load clients from loaded config dict
-        self.load_clients(config)
+        # Initialize clients from config
+        self.load_clients(cfg)
 
     def load_clients(self, config):
-        """Initialize clients from a config dict."""
         for client_config in config.get('clients', []):
             client_id = client_config.get('id')
             if not client_id:
-                print("Skipping client with missing ID")
                 continue
 
-            log_dir = os.path.join(self.output_dir, client_id)
-            if client_id != 'repository':
-                client = ReliableClient(client_id, self.broker, log_dir)
+            client_log_dir = os.path.join(self.output_dir, client_id)
+            if client_id == "repository":
+                client = RepositoryClient(client_id, self.broker, client_log_dir)
             else:
-                client = RepositoryClient(client_id, self.broker, log_dir)
+                client = ReliableClient(client_id, self.broker, client_log_dir)
 
-            # subscriptions
-            for ch in client_config.get('subscribe', []):
-                client.subscribe(ch)
-                print(f"Client {client_id} subscribed to {ch}")
+            for channel in client_config.get('subscribe', []):
+                client.subscribe(channel)
+                print(f"Client {client_id} subscribed to channel: {channel}")
 
-            # publishers
             for pub in client_config.get('publish', []):
-                ch = pub.get('channel')
-                msg = pub.get('message', f"Message from {client_id}")
-                freq = pub.get('frequency_ms', 5000) / 1000.0
-                if ch:
+                channel = pub.get('channel')
+                message = pub.get('message', f"Message from {client_id}")
+                frequency_ms = pub.get('frequency_ms', 5000)
+
+                if channel:
                     t = threading.Thread(
                         target=self._publisher_thread,
-                        args=(client_id, ch, msg, freq),
+                        args=(client_id, channel, message, frequency_ms),
                         daemon=True
                     )
                     self.publisher_threads.append(t)
-                    print(f"Client {client_id} will publish to {ch} every {freq}s")
-                else:
-                    print(f"Skipping publish config for {client_id}")
+                    print(f"Client {client_id} will publish to {channel} every {frequency_ms/1000.0}s")
 
             self.clients[client_id] = client
 
         print(f"Configured {len(self.clients)} clients.")
 
-    def _publisher_thread(self, client_id, channel, message, interval):
+    def _publisher_thread(self, client_id, channel, message, frequency_ms):
         client = self.clients[client_id]
+        sleep_time = frequency_ms / 1000.0
         while True:
             client.publish(channel, message)
-            time.sleep(interval)
+            time.sleep(sleep_time)
 
     def start(self):
-        print(f"Starting {type(self.broker).__name__} listener...")
+        print(f"Starting {self.broker.__class__.__name__} listener...")
         self.broker.start_listener()
+
+        print("Starting publisher threads...")
         for t in self.publisher_threads:
             t.start()
 
@@ -77,30 +84,21 @@ class ConfigurableMessagingSystem:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("Stopping...")
+            print("\nShutting down...")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Configurable messaging system")
-    parser.add_argument('config_file')
-    parser.add_argument('broker_type', choices=['redis','rabbitmq','kafka'],
-                        help='Select broker defined in config')
-    parser.add_argument('-o','--output-dir', default='./logs', help='Logs directory')
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="JSON-configured messaging system (broker from config)")
+    parser.add_argument("config_file", help="Path to JSON configuration file")
+    parser.add_argument("--output-dir", "-o",
+                        help="Directory for log files", default="./logs")
     args = parser.parse_args()
 
-    # load full config
-    with open(args.config_file) as f:
-        cfg = json.load(f)
-
-    # pick broker config
-    broker_cfg = cfg.get('brokers', {}).get(args.broker_type)
-    if broker_cfg is None:
-        raise ValueError(f"Broker '{args.broker_type}' not defined in config.json")
-    broker_cfg['type'] = args.broker_type
-    broker = get_broker(broker_cfg)
-
-    system = ConfigurableMessagingSystem(cfg, broker, args.output_dir)
+    system = ConfigurableMessagingSystem(args.config_file, args.output_dir)
     system.start()
+
 
 if __name__ == '__main__':
     main()

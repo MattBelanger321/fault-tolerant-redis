@@ -1,6 +1,28 @@
+version: '3.8'
 services:
+
+  # ─── Redis ───
+  redis:
+    image: redis:7.0-alpine
+    container_name: broker_redis
+    ports:
+      - "6379:6379"
+
+  # ─── RabbitMQ ───
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: broker_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+
+  # ─── Redpanda (Kafka-compatible) ───
   redpanda:
     image: redpandadata/redpanda:v24.1.2
+    container_name: broker_redpanda
     command:
       - redpanda
       - start
@@ -12,3 +34,10 @@ services:
       - --check=false
     ports:
       - "9092:9092"
+
+# sudo apt install docker-compose
+# sudo systemctl stop redis-server
+# sudo systemctl stop rabbitmq-server
+# sudo docker stop broker_redpanda
+# sudo docker-compose down
+# sudo docker-compose up -d

@@ -1,6 +1,6 @@
 # requirements.txt
 async-timeout==5.0.1
 redis==5.2.1
-pika==1.5.0            # RabbitMQ client
+pika==1.3.2            # RabbitMQ client
 kafka-python==2.0.2    # Kafka client
 python-dotenv==1.0.0   # Optional: load .env files for credentials

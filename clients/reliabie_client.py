@@ -11,6 +11,8 @@ class ReliableClient(LoggingClient):
         self.client_id = client_id
 
     def on_pnak(self, channel, message, base, base_msg):
+        super().log_to_notification_file(
+            f"Received NAK from Repository for message: \"{base_msg}\"")
         super().publish(base + reliable_prefixes.P_RETRANSMIT, base_msg)
 
     def handle_ack(self, channel, message, ack_event, base_msg):

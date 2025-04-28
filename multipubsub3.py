@@ -16,7 +16,8 @@ class ConfigurableMessagingSystem:
         with open(config_file, 'r') as f:
             cfg = json.load(f)
 
-        sel = cfg["selected_broker"]              # "redis" | "rabbitmq" | "kafka"
+        # "redis" | "rabbitmq" | "kafka"
+        sel = cfg["selected_broker"]
         broker_cfg = cfg["brokers"][sel]
         broker_cfg["type"] = sel
         self.broker = get_broker(broker_cfg)
@@ -38,7 +39,8 @@ class ConfigurableMessagingSystem:
 
             client_log_dir = os.path.join(self.output_dir, client_id)
             if client_id == "repository":
-                client = RepositoryClient(client_id, self.broker, client_log_dir)
+                client = RepositoryClient(
+                    client_id, self.broker, client_log_dir, client_config.get('fault_rate'))
             else:
                 client = ReliableClient(client_id, self.broker, client_log_dir)
 
@@ -58,7 +60,8 @@ class ConfigurableMessagingSystem:
                         daemon=True
                     )
                     self.publisher_threads.append(t)
-                    print(f"Client {client_id} will publish to {channel} every {frequency_ms/1000.0}s")
+                    print(
+                        f"Client {client_id} will publish to {channel} every {frequency_ms/1000.0}s")
 
             self.clients[client_id] = client
 

@@ -56,6 +56,7 @@
 		{
 			"id": "repository",
 			"reliable": true,
+			"fault_rate": 0.2,
 			"subscribe": [
 				"status",
 				"notifications",

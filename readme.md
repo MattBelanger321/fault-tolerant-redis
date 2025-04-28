@@ -9,3 +9,6 @@ sudo docker-compose up -d
 
 Run the simulation:
 python3 multipubsub3.py config.json
+
+Run the benchmark:
+python3 benchmark.py

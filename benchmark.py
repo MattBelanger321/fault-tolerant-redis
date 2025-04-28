@@ -5,6 +5,7 @@ import time, statistics, pathlib
 from datetime import datetime
 from clients.repository_client import RepositoryClient
 from clients.reliabie_client   import ReliableClient
+from message_brokers.streams_broker import RedisStreamsBroker
 from message_brokers.redis_broker     import RedisMessageBroker
 from message_brokers.rabbitmq_broker  import RabbitMQBroker
 from message_brokers.kafka_broker     import KafkaBroker
@@ -61,6 +62,8 @@ def bench(label, broker, n=40):
 def factory(kind):
     if kind == "redis":
         return RedisMessageBroker()
+    if kind == "streams":
+        return RedisStreamsBroker()
     if kind == "rabbit":
         return RabbitMQBroker(
             host="localhost", port=5672,
@@ -75,6 +78,6 @@ if not LOGFILE.exists():
     LOGFILE.write_text("utc_timestamp\tbackend\tmessages\tmsg_per_s\tavg_ms\n")
 
 # run benchmarks 
-for name in ("redis", "rabbit", "kafka"):
+for name in ("redis", "streams", "rabbit", "kafka"):
     print(f"Benchmarking {name} …")
     bench(name, factory(name))

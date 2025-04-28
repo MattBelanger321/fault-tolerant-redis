@@ -27,6 +27,7 @@ class RabbitMQBroker(MessageBroker):
         # Lock to synchronize publish calls
         self._pub_lock = threading.Lock()
         # Track subscriber threads
+        self._declared = set() 
         self.threads = {}
 
     def publish(self, channel, message):
@@ -34,11 +35,11 @@ class RabbitMQBroker(MessageBroker):
         Declare a durable fanout exchange and publish a persistent message under a lock.
         """
         with self._pub_lock:
-            self.pub_ch.exchange_declare(
-                exchange=channel,
-                exchange_type='fanout',
-                durable=True
-            )
+            if channel not in self._declared:
+                self.pub_ch.exchange_declare(exchange=channel,
+                                            exchange_type='fanout',
+                                            durable=True)
+                self._declared.add(channel)
             self.pub_ch.basic_publish(
                 exchange=channel,
                 routing_key='',

@@ -36,15 +36,16 @@ class KafkaBroker(MessageBroker):
             bootstrap_servers=self.producer.config['bootstrap_servers'],
             auto_offset_reset='latest',
             group_id=None,
+            fetch_max_wait_ms=5,      # default 500
+            enable_auto_commit=False,
             value_deserializer=lambda v: v.decode('utf-8')
         )
-
-        # ─── BLOCK until the consumer is fully subscribed ───
+        
         # kick off the assignment
-        consumer.poll(timeout_ms=500)
+        consumer.poll(timeout_ms=1.00)
         deadline = time.time() + 5.0
         while not consumer.assignment() and time.time() < deadline:
-            consumer.poll(timeout_ms=100)
+            consumer.poll(timeout_ms=1.00)
         if not consumer.assignment():
             print(f"[KafkaBroker] WARNING: no partitions assigned for topic '{topic}'")
 

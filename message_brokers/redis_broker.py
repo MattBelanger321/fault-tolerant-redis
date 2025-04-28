@@ -30,13 +30,13 @@ class RedisMessageBroker(MessageBroker):
         # Redis will ignore duplicate subscriptions.
         self.pubsub.subscribe(channel)
         # Brief pause to help ensure the subscribe command is processed.
-        time.sleep(0.1)
+        #time.sleep(0.00001)
 
     def unsubscribe(self, channel):
         if channel in self.callbacks:
             del self.callbacks[channel]
         self.pubsub.unsubscribe(channel)
-        time.sleep(0.1)
+        #time.sleep(0.00001)
 
     def publish(self, channel, message):
         self.publisher.publish(channel, message)
@@ -61,7 +61,7 @@ class RedisMessageBroker(MessageBroker):
                                 print(
                                     f"[Global Listener] Channel '{ch}': {data}")
                     # Short sleep to avoid busy-waiting
-                    time.sleep(0.001)
+                    #time.sleep(0.00001)
             self.listening_thread = threading.Thread(
                 target=_listen, daemon=True)
             self.listening_thread.start()
